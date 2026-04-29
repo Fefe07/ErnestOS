@@ -124,8 +124,12 @@ void terminal_putchar(char c) {
         index = i * VGA_WIDTH + j;
         index_next = (i + 1) * VGA_WIDTH + j;
         terminal_buffer[index] = terminal_buffer[index_next];
-      }
-    }
+      };
+    };
+    for (int j = 0; j < VGA_WIDTH; j++) {
+      terminal_buffer[(VGA_HEIGHT - 1) * VGA_WIDTH + j] =
+          vga_entry(' ', terminal_color);
+    };
   }
 
   if (c == '\n') {
@@ -179,6 +183,43 @@ void init_gdt() {
   gdt_flush(&gp);
 }
 
+void outb(uint16_t port, uint8_t val) {
+  asm volatile("outb %0, %1" : : "a"(val), "Nd"(port));
+}
+
+uint8_t inb(uint16_t port) {
+  uint8_t ret;
+  asm volatile("inb %1, %0" : "=a"(ret) : "Nd"(port));
+  return ret;
+}
+
+void pic_remap(int offset1, int offset2) {
+  uint8_t a1, a2;
+
+  // Sauvegarder les masques actuels
+  a1 = inb(0x21);
+  a2 = inb(0xA1);
+
+  // Initialisation en mode cascade
+  outb(0x20, 0x11);
+  outb(0xA0, 0x11);
+
+  // ICW2 : Les vecteurs d'interruption (Offset)
+  outb(0x21, offset1); // Master PIC -> 0x20 (32)
+  outb(0xA1, offset2); // Slave PIC  -> 0x28 (40)
+
+  // ICW3 : Configuration de la cascade
+  outb(0x21, 0x04); // Le maître a un esclave sur l'IRQ2
+  outb(0xA1, 0x02); // L'esclave est connecté à l'IRQ2 du maître
+
+  // ICW4 : Mode 8086
+  outb(0x21, 0x01);
+  outb(0xA1, 0x01);
+
+  // Restaurer les masques (ou mettre 0 pour tout activer)
+  outb(0x21, a1);
+  outb(0xA1, a2);
+}
 __attribute__((aligned(0x10))) static idt_entry_t idt[256];
 static idtr_t idtr;
 extern void idt_load(uint32_t);
@@ -190,6 +231,19 @@ void isr_handler(registers_t regs) {
     for (;;)
       ;
   };
+
+  if (regs.int_no == 32) {
+    terminal_writestring("a");
+  }
+
+  if (regs.int_no >= 32) {
+    // Si l'interruption vient de l'esclave (IRQ 8-15)
+    if (regs.int_no >= 40) {
+      outb(0xA0, 0x20);
+    }
+    // Dans tous les cas, envoyer au maître
+    outb(0x20, 0x20);
+  }
 }
 
 void idt_set_gate(uint8_t num, uint32_t base, uint16_t sel, uint8_t flags) {
@@ -199,7 +253,7 @@ void idt_set_gate(uint8_t num, uint32_t base, uint16_t sel, uint8_t flags) {
   idt[num].reserved = 0;
   idt[num].attributes = flags;
 }
-
+extern void irq0(); // Déclaration de la fonction ASM
 void init_idt() {
   idtr.limit = (sizeof(idt_entry_t) * 256) - 1;
   idtr.base = (uint32_t)&idt;
@@ -211,6 +265,7 @@ void init_idt() {
   // 0x08 est le segment de code de votre GDT
   // 0x8E : Présent, Ring 0, Interrupt Gate
   idt_set_gate(0, (uint32_t)isr0, 0x08, 0x8E);
+  idt_set_gate(32, (uint32_t)irq0, 0x08, 0x8E);
 
   // On charge l'IDT
   idt_load((uint32_t)&idtr);
@@ -221,8 +276,12 @@ void kernel_main(void) {
   terminal_initialize();
   init_gdt();
   init_idt();
+  pic_remap(0x20, 0x28);
+  asm volatile("sti");
 
   terminal_writestring("a\nb\nc\nd\ne\nf\ng\nh\ni\nj\nk\nl\nm\nn\no\np\nq\nr\ns"
                        "\nt\nu\nv\nw\nx\ny\nz\n");
   terminal_writestring("test\n");
+  while (1)
+    ;
 }

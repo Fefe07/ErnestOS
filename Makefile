@@ -3,8 +3,8 @@ all: myos
 run: myos
 	qemu-system-i386 -kernel myos
 
-myos: boot.o kernel.o linker.ld gdt.o idt.o isr.o
-	i686-elf-gcc -T linker.ld -o myos -ffreestanding -O2 -nostdlib boot.o kernel.o gdt.o idt.o isr.o -lgcc
+myos: boot.o kernel.o linker.ld gdt.o idt.o isr.o irq.o
+	i686-elf-gcc -T linker.ld -o myos -ffreestanding -O2 -nostdlib irq.o boot.o kernel.o gdt.o idt.o isr.o -lgcc
 
 boot.o: boot.s
 	i686-elf-as boot.s -o boot.o
@@ -20,6 +20,9 @@ isr.o: isr.s
 
 idt.o: idt.s
 	i686-elf-as idt.s -o idt.o
+
+irq.o: irq.s
+	i686-elf-as irq.s -o irq.o
 
 clean:
 	rm *.o
