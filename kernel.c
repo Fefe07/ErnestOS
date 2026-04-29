@@ -33,6 +33,22 @@ enum vga_color {
   VGA_COLOR_WHITE = 15,
 };
 
+struct gdt_entry {
+  uint16_t limit_low;
+  uint16_t base_low;
+  uint8_t base_middle;
+  uint8_t access;
+  uint8_t granularity;
+  uint8_t base_high;
+} __attribute__((packed));
+
+struct gdt_ptr {
+  uint16_t limit;
+  uint32_t base;
+} __attribute__((packed));
+
+extern void gdt_flush(struct gdt_ptr *);
+
 static inline uint8_t vga_entry_color(enum vga_color fg, enum vga_color bg) {
   return fg | bg << 4;
 }
@@ -112,9 +128,40 @@ void terminal_writestring(const char *data) {
   terminal_write(data, strlen(data));
 }
 
+struct gdt_entry gdt[3];
+struct gdt_ptr gp;
+
+void gdt_set_gate(int num, uint32_t base, uint32_t limit, uint8_t access,
+                  uint8_t gran) {
+  gdt[num].base_low = (base & 0xFFFF);
+  gdt[num].base_middle = (base >> 16) & 0xFF;
+  gdt[num].base_high = (base >> 24) & 0xFF;
+  gdt[num].limit_low = (limit & 0xFFFF);
+  gdt[num].granularity = ((limit >> 16) & 0x0F) | (gran & 0xF0);
+  gdt[num].access = access;
+}
+
+void init_gdt() {
+  gp.limit = (sizeof(struct gdt_entry) * 3) - 1;
+  gp.base = (uint32_t)&gdt;
+
+  // Null descriptor
+  gdt_set_gate(0, 0, 0, 0, 0);
+
+  // Kernel Code Segment
+  gdt_set_gate(1, 0, 0xFFFFFFFF, 0x9A, 0xCF);
+
+  // Kernel Data Segment
+  gdt_set_gate(2, 0, 0xFFFFFFFF, 0x92, 0xCF);
+
+  // Appel de la fonction assembleur pour charger la GDT
+  gdt_flush(&gp);
+}
+
 void kernel_main(void) {
   /* Initialize terminal interface */
   terminal_initialize();
+  init_gdt();
 
   /* Newline support is left as an exercise. */
   terminal_writestring("a\nb\nc\nd\ne\nf\ng\nh\ni\nj\nk\nl\nm\nn\no\np\nq\nr\ns"
