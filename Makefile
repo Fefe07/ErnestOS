@@ -7,7 +7,7 @@ OBJS += $(SRCS_S:%.s=build/%.o)
 all: myos
 
 run: myos
-	qemu-system-i386 -kernel myos
+	qemu-system-i386 -kernel myos -k fr
 
 myos: $(OBJS)
 	i686-elf-gcc -T linker.ld -o myos -ffreestanding -O2 -nostdlib $(OBJS) -lgcc

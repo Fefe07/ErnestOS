@@ -7,7 +7,6 @@ void init_gdt();
 void init_idt();
 
 void kernel_main(void) {
-  /* Initialize terminal interface */
   terminal_initialize();
   init_gdt();
   init_idt();

@@ -1,6 +1,15 @@
 #include "terminal.h"
 #include <stdint.h>
 
+uint32_t timer = 0;
+unsigned char kbd_map[128] = {
+    0,    27,   '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', ')', '=',
+    '\b', '\t', 'a', 'z', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p', '^', '$',
+    '\n', 0,    'q', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l', 'm', '%', '*',
+    0,    '<',  'w', 'x', 'c', 'v', 'b', 'n', ',', ';', ':', '!', 0,   '*',
+    0,    ' ',  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+    0,    0,    0,   0,   '-', 0,   0,   0,   '+'};
+
 typedef struct {
   uint16_t isr_low;   // The lower 16 bits of the ISR's address
   uint16_t kernel_cs; // The GDT segment selector that the CPU will load into CS
@@ -63,25 +72,36 @@ __attribute__((aligned(0x10))) static idt_entry_t idt[256];
 static idtr_t idtr;
 
 void isr_handler(registers_t regs) {
-  if (regs.int_no == 0) {
+
+  if (regs.int_no == 0) { // Zero Division Error
     terminal_writestring("EXCEPTION: Division par zero !\n");
     for (;;)
       ;
   };
 
-  if (regs.int_no == 32) {
-    terminal_writestring("a");
-  }
+  if (regs.int_no == 32) { // Timer
+    timer++;
+  };
+
+  if (regs.int_no == 33) { // Keyboard
+    uint8_t scancode = inb(0x60);
+    if (!(scancode & 0x80)) {
+      if (scancode < 128 && kbd_map[scancode] != 0) {
+        char c = kbd_map[scancode];
+        terminal_putchar(c);
+      };
+    };
+  };
 
   if (regs.int_no >= 32) {
     // Si l'interruption vient de l'esclave (IRQ 8-15)
     if (regs.int_no >= 40) {
       outb(0xA0, 0x20);
-    }
+    };
     // Dans tous les cas, envoyer au maître
     outb(0x20, 0x20);
-  }
-}
+  };
+};
 
 void idt_set_gate(uint8_t num, uint32_t base, uint16_t sel, uint8_t flags) {
   idt[num].isr_low = (base & 0xFFFF);
@@ -89,12 +109,13 @@ void idt_set_gate(uint8_t num, uint32_t base, uint16_t sel, uint8_t flags) {
   idt[num].kernel_cs = sel;
   idt[num].reserved = 0;
   idt[num].attributes = flags;
-}
+};
 
 extern void idt_load(uint32_t);
 // declare interruptions
 extern void isr0();
 extern void isr32();
+extern void isr33();
 
 void init_idt() {
   idtr.limit = (sizeof(idt_entry_t) * 256) - 1;
@@ -108,6 +129,7 @@ void init_idt() {
   // 0x8E : Présent, Ring 0, Interrupt Gate
   idt_set_gate(0, (uint32_t)isr0, 0x08, 0x8E);
   idt_set_gate(32, (uint32_t)isr32, 0x08, 0x8E);
+  idt_set_gate(33, (uint32_t)isr33, 0x08, 0x8E);
 
   // On charge l'IDT
   idt_load((uint32_t)&idtr);
