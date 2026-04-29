@@ -1,28 +1,23 @@
+SRCS_C = $(wildcard *.c)
+SRCS_S = $(wildcard *.s)
+
+OBJS = $(SRCS_C:%.c=build/%c.o)
+OBJS += $(SRCS_S:%.s=build/%.o)
+
 all: myos
 
 run: myos
 	qemu-system-i386 -kernel myos
 
-myos: boot.o kernel.o linker.ld gdt.o idt.o isr.o irq.o
-	i686-elf-gcc -T linker.ld -o myos -ffreestanding -O2 -nostdlib irq.o boot.o kernel.o gdt.o idt.o isr.o -lgcc
+myos: $(OBJS)
+	i686-elf-gcc -T linker.ld -o myos -ffreestanding -O2 -nostdlib $(OBJS) -lgcc
 
-boot.o: boot.s
-	i686-elf-as boot.s -o boot.o
+build/%.o: %.s
+	i686-elf-as $< -o $@
 
-kernel.o: kernel.c
-	i686-elf-gcc -c kernel.c -o kernel.o -std=gnu99 -ffreestanding -O2 -Wall -Wextra
-
-gdt.o: gdt.s
-	i686-elf-as gdt.s -o gdt.o
-
-isr.o: isr.s
-	i686-elf-as isr.s -o isr.o
-
-idt.o: idt.s
-	i686-elf-as idt.s -o idt.o
-
-irq.o: irq.s
-	i686-elf-as irq.s -o irq.o
+build/%c.o: %.c
+	i686-elf-gcc -c $< -o $@ -std=gnu99 -ffreestanding -O2 -Wall -Wextra
 
 clean:
-	rm *.o
+	rm -rf build/*
+	rm myos

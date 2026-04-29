@@ -8,6 +8,7 @@ isr\num:
 .endm
 
 ISR_NOERRCODE 0
+ISR_NOERRCODE 32
 
 isr_common_stub:
     pusha                 # Sauvegarder tous les registres (EAX, ECX, EDX, EBX, ESP, EBP, ESI, EDI)
