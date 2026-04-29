@@ -1,3 +1,4 @@
+#include "keyboard_handler.h"
 #include "terminal.h"
 #include <stdint.h>
 
@@ -88,7 +89,7 @@ void isr_handler(registers_t regs) {
     if (!(scancode & 0x80)) {
       if (scancode < 128 && kbd_map[scancode] != 0) {
         char c = kbd_map[scancode];
-        terminal_putchar(c);
+        keypress(c);
       };
     };
   };

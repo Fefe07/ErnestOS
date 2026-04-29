@@ -1,3 +1,4 @@
+#include "keyboard_handler.h"
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -45,19 +46,6 @@ size_t terminal_column;
 uint8_t terminal_color;
 uint16_t *terminal_buffer = (uint16_t *)VGA_MEMORY;
 
-void terminal_initialize(void) {
-  terminal_row = 0;
-  terminal_column = 0;
-  terminal_color = vga_entry_color(VGA_COLOR_LIGHT_MAGENTA, VGA_COLOR_MAGENTA);
-
-  for (size_t y = 0; y < VGA_HEIGHT; y++) {
-    for (size_t x = 0; x < VGA_WIDTH; x++) {
-      const size_t index = y * VGA_WIDTH + x;
-      terminal_buffer[index] = vga_entry(' ', terminal_color);
-    }
-  }
-}
-
 void terminal_setcolor(uint8_t color) { terminal_color = color; }
 
 void terminal_putentryat(char c, uint8_t color, size_t x, size_t y) {
@@ -102,4 +90,18 @@ void terminal_write(const char *data, size_t size) {
 
 void terminal_writestring(const char *data) {
   terminal_write(data, strlen(data));
+}
+
+void terminal_initialize(void) {
+  set_keyboard_handler(terminal_putchar);
+  terminal_row = 0;
+  terminal_column = 0;
+  terminal_color = vga_entry_color(VGA_COLOR_LIGHT_MAGENTA, VGA_COLOR_MAGENTA);
+
+  for (size_t y = 0; y < VGA_HEIGHT; y++) {
+    for (size_t x = 0; x < VGA_WIDTH; x++) {
+      const size_t index = y * VGA_WIDTH + x;
+      terminal_buffer[index] = vga_entry(' ', terminal_color);
+    }
+  }
 }
