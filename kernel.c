@@ -49,6 +49,27 @@ struct gdt_ptr {
 
 extern void gdt_flush(struct gdt_ptr *);
 
+typedef struct {
+  uint16_t isr_low;   // The lower 16 bits of the ISR's address
+  uint16_t kernel_cs; // The GDT segment selector that the CPU will load into CS
+                      // before calling the ISR
+  uint8_t reserved;   // Set to zero
+  uint8_t attributes; // Type and attributes; see the IDT page
+  uint16_t isr_high;  // The higher 16 bits of the ISR's address
+} __attribute__((packed)) idt_entry_t;
+
+typedef struct {
+  uint32_t ds;
+  uint32_t edi, esi, ebp, esp, ebx, edx, ecx, eax;
+  uint32_t int_no, err_code;
+  uint32_t eip, cs, eflags, useresp, ss;
+} registers_t;
+
+typedef struct {
+  uint16_t limit;
+  uint32_t base;
+} __attribute__((packed)) idtr_t;
+
 static inline uint8_t vga_entry_color(enum vga_color fg, enum vga_color bg) {
   return fg | bg << 4;
 }
@@ -158,12 +179,50 @@ void init_gdt() {
   gdt_flush(&gp);
 }
 
+__attribute__((aligned(0x10))) static idt_entry_t idt[256];
+static idtr_t idtr;
+extern void idt_load(uint32_t);
+extern void isr0();
+
+void isr_handler(registers_t regs) {
+  if (regs.int_no == 0) {
+    terminal_writestring("EXCEPTION: Division par zero !\n");
+    for (;;)
+      ;
+  };
+}
+
+void idt_set_gate(uint8_t num, uint32_t base, uint16_t sel, uint8_t flags) {
+  idt[num].isr_low = (base & 0xFFFF);
+  idt[num].isr_high = (base >> 16) & 0xFFFF;
+  idt[num].kernel_cs = sel;
+  idt[num].reserved = 0;
+  idt[num].attributes = flags;
+}
+
+void init_idt() {
+  idtr.limit = (sizeof(idt_entry_t) * 256) - 1;
+  idtr.base = (uint32_t)&idt;
+
+  // On initialise toute la table à zéro
+  // (Utilisez votre propre fonction memset si disponible)
+
+  // On enregistre notre handler pour l'exception 0
+  // 0x08 est le segment de code de votre GDT
+  // 0x8E : Présent, Ring 0, Interrupt Gate
+  idt_set_gate(0, (uint32_t)isr0, 0x08, 0x8E);
+
+  // On charge l'IDT
+  idt_load((uint32_t)&idtr);
+}
+
 void kernel_main(void) {
   /* Initialize terminal interface */
   terminal_initialize();
   init_gdt();
+  init_idt();
 
-  /* Newline support is left as an exercise. */
   terminal_writestring("a\nb\nc\nd\ne\nf\ng\nh\ni\nj\nk\nl\nm\nn\no\np\nq\nr\ns"
                        "\nt\nu\nv\nw\nx\ny\nz\n");
+  terminal_writestring("test\n");
 }
