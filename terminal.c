@@ -92,6 +92,14 @@ void terminal_writestring(const char *data) {
   terminal_write(data, strlen(data));
 }
 
+void terminal_clear() {
+  for (int i = 0; i < VGA_HEIGHT; i++) {
+    terminal_writestring("\n");
+  };
+  terminal_row = 0;
+  terminal_column = 0;
+};
+
 void terminal_initialize(void) {
   set_keyboard_handler(terminal_putchar);
   terminal_row = 0;

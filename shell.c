@@ -27,6 +27,9 @@ void clear_buffer() {
 void execute_command(char *command) {
   if (strcmp(command, "exit")) {
     continu = 0;
+  } else if (strcmp(command, "clear")) {
+    terminal_clear();
+  } else if (strcmp(command, "")) {
   } else {
     terminal_writestring("Unknown command : ");
     terminal_writestring(command);
