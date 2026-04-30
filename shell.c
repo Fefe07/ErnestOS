@@ -1,3 +1,4 @@
+#include "functions.h"
 #include "keyboard_handler.h"
 #include "terminal.h"
 
@@ -24,12 +25,45 @@ void clear_buffer() {
   shell_index = 0;
 }
 
-void execute_command(char *command) {
+void execute_command(char *entree) {
+  char *argv[16];
+  int argc = 0;
+
+  char *p = entree;
+  while (*p != '\0' && argc < 16) {
+    while (*p == ' ')
+      p++;
+
+    if (*p == '\0')
+      break;
+
+    argv[argc++] = p;
+
+    while (*p != ' ' && *p != '\0')
+      p++;
+
+    if (*p != '\0') {
+      *p = '\0';
+      p++;
+    }
+  }
+
+  if (argc == 0)
+    return;
+
+  char *command = argv[0];
   if (strcmp(command, "exit")) {
     continu = 0;
   } else if (strcmp(command, "clear")) {
     terminal_clear();
-  } else if (strcmp(command, "")) {
+  } else if (strcmp(command, "bonjour")) {
+    terminal_writestring("Hello World !\n");
+  } else if (strcmp(command, "echo")) {
+    echo_main(argc, argv);
+  } else if (strcmp(command, "time")) {
+    time_main(argc, argv);
+  } else if (strcmp(command, "sleep")) {
+    sleep_main(argc, argv);
   } else {
     terminal_writestring("Unknown command : ");
     terminal_writestring(command);
