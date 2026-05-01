@@ -1,15 +1,38 @@
 #include "keyboard_handler.h"
 #include "terminal.h"
+#include "utilities.h"
 #include <stdint.h>
 
 uint32_t timer = 0;
+uint32_t maj = 0;
+uint32_t alt = 0;
 unsigned char kbd_map[128] = {
-    0,    27,   '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', ')', '=',
-    '\b', '\t', 'a', 'z', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p', '^', '$',
-    '\n', 0,    'q', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l', 'm', '%', '*',
-    0,    '<',  'w', 'x', 'c', 'v', 'b', 'n', ',', ';', ':', '!', 0,   '*',
-    0,    ' ',  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
-    0,    0,    0,   0,   '-', 0,   0,   0,   '+'};
+    0,    27,  '&', 0x82, '"',  '\'', '(',  '-',  0x8a, '_', 0x87,
+    0x85, ')', '=', '\b', '\t', 'a',  'z',  'e',  'r',  't', 'y',
+    'u',  'i', 'o', 'p',  '^',  '$',  '\n', 0,    'q',  's', 'd',
+    'f',  'g', 'h', 'j',  'k',  'l',  'm',  0x97, 0xfd, 0,   '*', // 42 : lmaj
+    'w',  'x', 'c', 'v',  'b',  'n',  ',',  ';',  ':',  '!', 0,
+    '*',  0,   ' ', 0,    0, // 54 : rmaj, 56 : lalt
+    0,    0,   0,   0,    0,    0,    0,    0,    0,    0,   0,
+    '7',  '8', // 62 : larrow, 66:uparrow, 64 : rarrow, 61:darrow
+    '9',  '-', '4', '5',  '6',  '+',  '1',  '2',  '3',  '0', '.',
+    0,    0,   '<'};
+unsigned char kbd_shift_map[128] = {
+    0,    27,  '1',  '2',  '3',  '4',  '5', '6', '7', '8',  '9', '0',
+    0xf8, '+', '\b', '\t', 'A',  'Z',  'E', 'R', 'T', 'Y',  'U', 'I',
+    'O',  'P', 0xf9, 0x9C, '\n', 0,    'Q', 'S', 'D', 'F',  'G', 'H',
+    'J',  'K', 'L',  'M',  '%',  0x9C, 0,   'u', // 0x9C = £ (CP437)
+    'W',  'X', 'C',  'V',  'B',  'N',  '?', '.', '/', 0x15, 0,   '*',
+    0,    ' ', 0,    0,    0,    0,    0,   0,   0,   0,    0,   0,
+    0,    0,   0,    '7',  '8',  '9',  '-', '4', '5', '6',  '+', '1',
+    '2',  '3', '0',  '.',  0,    0,    '>'};
+unsigned char kbd_altgr_map[128] = {
+    0, 0,    0, '~', '#', '{', '[', '|', '`', '\\', '^', '@', ']', '}', 0, 0, 0,
+    0, 0xEE, 0, 0,   0, // 0xEE = € (approximatif)
+    0, 0,    0, 0,   0,   0,   0,   0,   0,   0,    0,   0,   0,   0,   0, 0, 0,
+    0, 0,    0, 0,   0,   0,   0,   0,   0,   0,    0,   0,   0,   0,   0, 0, 0,
+    0, 0,    0, 0,   0,   0,   0,   0,   0,   0,    0,   0,   0,   0,   0, 0, 0,
+    0, 0,    0, 0,   0,   0,   0,   0,   0,   0,    0,   0,   0,   0};
 
 typedef struct {
   uint16_t isr_low;   // The lower 16 bits of the ISR's address
@@ -86,12 +109,31 @@ void isr_handler(registers_t regs) {
 
   if (regs.int_no == 33) { // Keyboard
     uint8_t scancode = inb(0x60);
-    if (!(scancode & 0x80)) {
-      if (scancode < 128 && kbd_map[scancode] != 0) {
-        char c = kbd_map[scancode];
-        keypress(c);
+    if (scancode == 0x2A || scancode == 0x36) {
+      maj = 1;
+    } else if (scancode == 0xAA || scancode == 0xB6) {
+      maj = 0;
+    } else if (scancode == 0x38) {
+      alt = 1;
+    } else if (scancode == 0xB8) {
+      alt = 0;
+    } else {
+      // char res[256] = {0};
+      // unsigned_int_to_string(scancode, res);
+      // terminal_writestring(res);
+      // terminal_writestring("\n");
+      if (!(scancode & 0x80)) {
+        unsigned char *current_table = kbd_map;
+        if (maj)
+          current_table = kbd_shift_map;
+        else if (alt)
+          current_table = kbd_altgr_map;
+        if (scancode < 128 && current_table[scancode] != 0) {
+          char c = current_table[scancode];
+          keypress(c);
+        };
       };
-    };
+    }
   };
 
   if (regs.int_no >= 32) {

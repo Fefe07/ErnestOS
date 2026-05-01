@@ -31,16 +31,24 @@ void execute_command(char *entree) {
 
   char *p = entree;
   while (*p != '\0' && argc < 16) {
-    while (*p == ' ')
+    while (*p == ' ') {
       p++;
+    }
 
     if (*p == '\0')
       break;
+    if (*p != '"') {
+      argv[argc++] = p;
 
-    argv[argc++] = p;
-
-    while (*p != ' ' && *p != '\0')
-      p++;
+      while (*p != ' ' && *p != '\0') {
+        p++;
+      };
+    } else {
+      argv[argc++] = ++p;
+      while (*p != '"' && *p != '\0') {
+        p++;
+      };
+    }
 
     if (*p != '\0') {
       *p = '\0';
@@ -76,6 +84,11 @@ void add_char(char c) {
     terminal_putchar(c);
     execute_command(shell_buffer);
     new = 1;
+  } else if (c == '\b') {
+    if (shell_index != 0) {
+      shell_buffer[--shell_index] = 0;
+      terminal_putchar(c);
+    }
   } else if (shell_index < MAX_COMMAND_LEN - 1) {
     shell_buffer[shell_index++] = c;
     terminal_putchar(c);
