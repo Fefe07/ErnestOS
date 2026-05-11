@@ -97,7 +97,7 @@ void add_char(char c) {
 
 void input_line() { set_keyboard_handler(add_char); };
 
-int shell() {
+void shell() {
   terminal_writestring(
       "Bienvenue sur ErnestShell. Comment ca la seule commande est exit ?\n");
   while (continu) {
@@ -109,5 +109,4 @@ int shell() {
     };
   };
   set_keyboard_handler(0);
-  return 1;
 }

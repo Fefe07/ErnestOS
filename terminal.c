@@ -113,7 +113,7 @@ void terminal_initialize(void) {
   set_keyboard_handler(terminal_putchar);
   terminal_row = 0;
   terminal_column = 0;
-  terminal_color = vga_entry_color(VGA_COLOR_LIGHT_MAGENTA, VGA_COLOR_MAGENTA);
+  terminal_color = vga_entry_color(VGA_COLOR_LIGHT_BROWN, VGA_COLOR_MAGENTA);
 
   for (size_t y = 0; y < VGA_HEIGHT; y++) {
     for (size_t x = 0; x < VGA_WIDTH; x++) {
