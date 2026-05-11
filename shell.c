@@ -72,6 +72,8 @@ void execute_command(char *entree) {
     time_main(argc, argv);
   } else if (strcmp(command, "sleep")) {
     sleep_main(argc, argv);
+  } else if (strcmp(command, "help")){ 
+    help_main(argc,argv) ;
   } else {
     terminal_writestring("Unknown command : ");
     terminal_writestring(command);
