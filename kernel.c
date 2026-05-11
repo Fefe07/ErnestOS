@@ -17,7 +17,7 @@ typedef struct {
   int state;
 } pcb_t;
 
-pcb_t process_table[8];
+extern pcb_t process_table[8];
 
 void kernel_main(multiboot_info_t *mbd, unsigned int magic) {
   terminal_initialize();
