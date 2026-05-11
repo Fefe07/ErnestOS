@@ -13,4 +13,8 @@ You can then build it with `make`, and run with `make run`.
 
 ## Usage 
 
+Type `help` for command list, and `help foo` for more precisions.
+NB : the OS is in French so far.
 
+
+TODO : Ctrl + C or up/down arrows for historic 

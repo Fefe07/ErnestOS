@@ -53,9 +53,12 @@ void terminal_putentryat(char c, uint8_t color, size_t x, size_t y) {
   terminal_buffer[index] = vga_entry(c, color);
 }
 
+/* Écrit l'input de texte à l'écran */
 void terminal_putchar(char c) {
   size_t index;
   size_t index_next;
+
+  /* Gestion du défilement*/
   if (terminal_row == VGA_HEIGHT) {
     terminal_row--;
     for (int i = 0; i < VGA_HEIGHT - 1; i++) {
