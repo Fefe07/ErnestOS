@@ -1,37 +1,34 @@
 .macro ISR_NOERRCODE num
 .global isr\num
 isr\num:
-    cli                   # Désactiver les interruptions
-    push $0               # Pousser un code d'erreur fictif (nécessaire pour l'alignement)
-    push $\num            # Pousser le numéro de l'interruption
-    jmp isr_common_stub   # Sauter vers la routine commune
+    cli
+    push $0
+    push $\num
+    jmp isr_common_stub
 .endm
 
 ISR_NOERRCODE 0
 ISR_NOERRCODE 32
 ISR_NOERRCODE 33
+ISR_NOERRCODE 129
 
 isr_common_stub:
-    pusha                 # Sauvegarder tous les registres (EAX, ECX, EDX, EBX, ESP, EBP, ESI, EDI)
-    
-    mov %ds, %ax          # Sauvegarder le segment de données
+    pusha
+    mov %ds, %ax
     push %eax
-    
-    mov $0x10, %ax        # Charger le sélecteur de segment noyau
+    mov $0x10, %ax
     mov %ax, %ds
     mov %ax, %es
-    mov %ax, %fs
-    mov %ax, %gs
-    
-    call isr_handler      # APPEL DU CODE C
-    
-    pop %eax              # Restaurer le segment de données
+
+    push %esp
+    call isr_handler
+    mov %eax, %esp
+
+.global isr_restore_context
+isr_restore_context:
+    pop %eax
     mov %ax, %ds
     mov %ax, %es
-    mov %ax, %fs
-    mov %ax, %gs
-    
-    popa                  # Restaurer tous les registres
-    add $8, %esp          # Nettoyer le code d'erreur et le numéro d'ISR
-    sti                   # Réactiver les interruptions
+    popa
+    add $8, %esp
     iret

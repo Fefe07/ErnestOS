@@ -1,9 +1,14 @@
 #include "keyboard_handler.h"
+#include "process.h"
 #include "terminal.h"
 #include "utilities.h"
 #include <stdint.h>
 
+#define FREQUENCY 100 // Scheduler frequency
+extern pcb_t *current_process;
+
 uint32_t timer = 0;
+uint32_t ticks = 0;
 uint32_t maj = 0;
 uint32_t alt = 0;
 unsigned char kbd_map[128] = {
@@ -68,46 +73,51 @@ uint8_t inb(uint16_t port) {
 void pic_remap(int offset1, int offset2) {
   uint8_t a1, a2;
 
-  // Sauvegarder les masques actuels
   a1 = inb(0x21);
   a2 = inb(0xA1);
 
-  // Initialisation en mode cascade
   outb(0x20, 0x11);
   outb(0xA0, 0x11);
 
-  // ICW2 : Les vecteurs d'interruption (Offset)
-  outb(0x21, offset1); // Master PIC -> 0x20 (32)
-  outb(0xA1, offset2); // Slave PIC  -> 0x28 (40)
+  outb(0x21, offset1);
+  outb(0xA1, offset2);
 
-  // ICW3 : Configuration de la cascade
-  outb(0x21, 0x04); // Le maître a un esclave sur l'IRQ2
-  outb(0xA1, 0x02); // L'esclave est connecté à l'IRQ2 du maître
+  outb(0x21, 0x04);
+  outb(0xA1, 0x02);
 
-  // ICW4 : Mode 8086
   outb(0x21, 0x01);
   outb(0xA1, 0x01);
 
-  // Restaurer les masques (ou mettre 0 pour tout activer)
   outb(0x21, a1);
   outb(0xA1, a2);
 }
 __attribute__((aligned(0x10))) static idt_entry_t idt[256];
 static idtr_t idtr;
 
-void isr_handler(registers_t regs) {
+uint32_t isr_handler(registers_t *regs) {
 
-  if (regs.int_no == 0) { // Zero Division Error
+  if (regs->int_no == 0) { // Zero Division Error
     terminal_writestring("EXCEPTION: Division par zero !\n");
     for (;;)
       ;
   };
 
-  if (regs.int_no == 32) { // Timer
-    timer++;
-  };
+  if (regs->int_no == 32) {
+    ticks++;
+    timer = ticks / FREQUENCY;
+  }
 
-  if (regs.int_no == 33) { // Keyboard
+  if (regs->int_no == 32 || regs->int_no == 129) { // Timer
+    if (current_process != NULL) {
+      current_process->esp = (uint32_t)regs;
+      current_process = current_process->next;
+      if (regs->int_no == 32)
+        outb(0x20, 0x20);
+      return current_process->esp;
+    }
+  }
+
+  if (regs->int_no == 33) { // Keyboard
     uint8_t scancode = inb(0x60);
     if (scancode == 0x2A || scancode == 0x36) {
       maj = 1;
@@ -118,10 +128,6 @@ void isr_handler(registers_t regs) {
     } else if (scancode == 0xB8) {
       alt = 0;
     } else {
-      // char res[256] = {0};
-      // unsigned_int_to_string(scancode, res);
-      // terminal_writestring(res);
-      // terminal_writestring("\n");
       if (!(scancode & 0x80)) {
         unsigned char *current_table = kbd_map;
         if (maj)
@@ -136,14 +142,15 @@ void isr_handler(registers_t regs) {
     }
   };
 
-  if (regs.int_no >= 32) {
+  if (42 >= regs->int_no && regs->int_no >= 32) {
     // Si l'interruption vient de l'esclave (IRQ 8-15)
-    if (regs.int_no >= 40) {
+    if (regs->int_no >= 40) {
       outb(0xA0, 0x20);
     };
     // Dans tous les cas, envoyer au maître
     outb(0x20, 0x20);
   };
+  return (uint32_t)regs;
 };
 
 void idt_set_gate(uint8_t num, uint32_t base, uint16_t sel, uint8_t flags) {
@@ -155,27 +162,35 @@ void idt_set_gate(uint8_t num, uint32_t base, uint16_t sel, uint8_t flags) {
 };
 
 extern void idt_load(uint32_t);
+
 // declare interruptions
 extern void isr0();
 extern void isr32();
 extern void isr33();
+extern void isr129();
+
+void timer_init(uint32_t frequency) {
+  uint32_t divisor = 1193182 / frequency;
+
+  outb(0x43, 0x36);
+
+  outb(0x40, (uint8_t)(divisor & 0xFF));
+  outb(0x40, (uint8_t)((divisor >> 8) & 0xFF));
+}
 
 void init_idt() {
   idtr.limit = (sizeof(idt_entry_t) * 256) - 1;
   idtr.base = (uint32_t)&idt;
 
-  // On initialise toute la table à zéro
-  // (Utilisez votre propre fonction memset si disponible)
-
-  // On enregistre notre handler pour l'exception 0
-  // 0x08 est le segment de code de votre GDT
-  // 0x8E : Présent, Ring 0, Interrupt Gate
   idt_set_gate(0, (uint32_t)isr0, 0x08, 0x8E);
   idt_set_gate(32, (uint32_t)isr32, 0x08, 0x8E);
   idt_set_gate(33, (uint32_t)isr33, 0x08, 0x8E);
+  idt_set_gate(129, (uint32_t)isr129, 0x08, 0x8E);
 
-  // On charge l'IDT
   idt_load((uint32_t)&idtr);
   pic_remap(0x20, 0x28);
+
   asm volatile("sti");
+
+  timer_init(FREQUENCY);
 }
