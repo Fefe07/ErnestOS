@@ -83,14 +83,70 @@ void list_dir(struct inode_s dir) {
                    (uint16_t *)buffer);
   struct entry_s *entry = (struct entry_s *)buffer;
   uint32_t offset = 0;
-  while (entry->inode != 0 && offset < block_size) {
-    for (uint32_t i = 0; i < entry->name_len; i++) {
-      terminal_putchar(*(entry->name + i));
+  while (offset < block_size) {
+    if (entry->inode != 0) {
+      for (uint32_t i = 0; i < entry->name_len; i++) {
+        terminal_putchar(*(entry->name + i));
+      }
+      terminal_putchar('\n');
     }
-    terminal_putchar('\n');
+    if (entry->size == 0) {
+      break;
+    }
     offset += entry->size;
     entry = (struct entry_s *)(buffer + offset);
   }
+}
+
+uint32_t inode_by_name(struct inode_s dir, char *name) {
+  uint8_t buffer[1024];
+  ide_read_sectors(dir.block[0] * sect_per_block, sect_per_block,
+                   (uint16_t *)buffer);
+  struct entry_s *entry = (struct entry_s *)buffer;
+  uint32_t offset = 0;
+  while (entry->inode != 0 && offset < block_size) {
+    uint32_t same = 1;
+    for (uint32_t i = 0; i < entry->name_len; i++) {
+      if (entry->name[i] != name[i] || name[i] == 0) {
+        same = 0;
+        break;
+      }
+    }
+    if (same && !name[entry->name_len]) {
+      return entry->inode;
+    }
+    offset += entry->size;
+    entry = (struct entry_s *)(buffer + offset);
+  }
+  return 0;
+}
+
+struct bgd_s get_bgd(uint32_t group_index) {
+  struct bgd_s target_bgd;
+  uint32_t bgdt_start_block = (block_size == 1024) ? 2 : 1;
+  uint32_t byte_offset = group_index * sizeof(struct bgd_s);
+  uint32_t block_to_read = bgdt_start_block + (byte_offset / block_size);
+  uint32_t offset_in_block = byte_offset % block_size;
+
+  uint8_t buffer[1024];
+  ide_read_sectors(block_to_read * sect_per_block, sect_per_block,
+                   (uint16_t *)buffer);
+
+  memcpy(&target_bgd, buffer + offset_in_block, sizeof(struct bgd_s));
+
+  return target_bgd;
+}
+
+struct inode_s inode_by_id(uint32_t id) {
+  uint32_t group = (id - 1) / superblock.nb_inodes_group;
+  uint32_t index = (id - 1) % superblock.nb_inodes_group;
+  struct bgd_s bgd = get_bgd(group);
+  uint8_t buffer[1024];
+  ide_read_sectors(bgd.inode_table * sect_per_block, sect_per_block,
+                   (uint16_t *)buffer);
+  struct inode_s res;
+  memcpy(&res, buffer + index * superblock.inode_size, sizeof(struct inode_s));
+  return res;
 }
 
 void init_filesystem() {

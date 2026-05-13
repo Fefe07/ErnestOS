@@ -21,3 +21,5 @@ struct inode_s {
   uint32_t oss2[3];
 } __attribute__((packed));
 void list_dir(struct inode_s dir);
+uint32_t inode_by_name(struct inode_s dir, char *name);
+struct inode_s inode_by_id(uint32_t id);

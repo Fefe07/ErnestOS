@@ -29,6 +29,24 @@ void clear_buffer() {
   shell_index = 0;
 }
 
+void cd(uint32_t argc, char **argv) {
+  if (argc != 2) {
+    terminal_writestring("cd prend exactement un argument\n");
+  }
+  uint32_t new_node = inode_by_name(working_directory, argv[1]);
+  if (!new_node) {
+    terminal_writestring(argv[1]);
+    terminal_writestring(" does not exists.\n");
+  }
+  struct inode_s new_inode = inode_by_id(new_node);
+  if ((new_inode.type_perm & 0x4000) != 0x4000) {
+    terminal_writestring(argv[1]);
+    terminal_writestring(" is not a directory.\n");
+  } else {
+    working_directory = new_inode;
+  }
+}
+
 void execute_command(char *entree) {
   char *argv[16];
   int argc = 0;
@@ -70,6 +88,8 @@ void execute_command(char *entree) {
     terminal_clear();
   } else if (strcmp(command, "ls")) {
     list_dir(working_directory);
+  } else if (strcmp(command, "cd")) {
+    cd(argc, argv);
   } else if (strcmp(command, "bonjour")) {
     terminal_writestring("Hello World !\n");
   } else if (strcmp(command, "echo")) {
