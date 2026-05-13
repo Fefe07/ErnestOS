@@ -1,3 +1,4 @@
+#include "filesystem.h"
 #include "functions.h"
 #include "keyboard_handler.h"
 #include "terminal.h"
@@ -9,6 +10,9 @@ int shell_index = 0;
 
 volatile int continu = 1;
 volatile int new = 1;
+
+extern struct inode_s root;
+struct inode_s working_directory;
 
 int strcmp(const char *s1, const char *s2) {
   while (*s1 && *s2 && (*s1 == *s2)) {
@@ -64,6 +68,8 @@ void execute_command(char *entree) {
     continu = 0;
   } else if (strcmp(command, "clear")) {
     terminal_clear();
+  } else if (strcmp(command, "ls")) {
+    list_dir(working_directory);
   } else if (strcmp(command, "bonjour")) {
     terminal_writestring("Hello World !\n");
   } else if (strcmp(command, "echo")) {
@@ -72,8 +78,8 @@ void execute_command(char *entree) {
     time_main(argc, argv);
   } else if (strcmp(command, "sleep")) {
     sleep_main(argc, argv);
-  } else if (strcmp(command, "help")){ 
-    help_main(argc,argv) ;
+  } else if (strcmp(command, "help")) {
+    help_main(argc, argv);
   } else {
     terminal_writestring("Unknown command : ");
     terminal_writestring(command);
@@ -100,8 +106,8 @@ void add_char(char c) {
 void input_line() { set_keyboard_handler(add_char); };
 
 void shell() {
-  terminal_writestring(
-      "Bienvenue sur ErnestShell. Comment ca la seule commande est exit ?\n");
+  terminal_writestring("Bienvenue sur ErnestShell.\n");
+  working_directory = root;
   while (continu) {
     if (new) {
       new = 0;

@@ -1,4 +1,5 @@
 #include "keyboard_handler.h"
+#include "utilities.h"
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -111,6 +112,12 @@ void terminal_clear() {
   terminal_row = 0;
   terminal_column = 0;
 };
+
+void terminal_write_int(uint32_t x) {
+  char res[15];
+  unsigned_int_to_string(x, res);
+  terminal_writestring(res);
+}
 
 void terminal_initialize(void) {
   set_keyboard_handler(terminal_putchar);

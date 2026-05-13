@@ -31,22 +31,58 @@ unsigned char kbd_shift_map[128] = {
     0,    ' ', 0,    0,    0,    0,    0,   0,   0,   0,    0,   0,
     0,    0,   0,    '7',  '8',  '9',  '-', '4', '5', '6',  '+', '1',
     '2',  '3', '0',  '.',  0,    0,    '>'};
-unsigned char kbd_altgr_map[128] = {
-    0, 0,    0, '~', '#', '{', '[', '|', '`', '\\', '^', '@', ']', '}', 0, 0, 0,
-    0, 0xEE, 0, 0,   0, // 0xEE = € (approximatif)
-    0, 0,    0, 0,   0,   0,   0,   0,   0,   0,    0,   0,   0,   0,   0, 0, 0,
-    0, 0,    0, 0,   0,   0,   0,   0x33, /* escape character*/   0,   0,    0,   0,   0,   0,   0, 0, 0,
-    0, 0,    0, 0,   0,   0,   0,   0,   0,   0,    0,   0,   0,   0,   0, 0, 0,
-    0, 0,    0, 0,   0,   0,   0,   0,   0,   0,    0,   0,   0,   0};
+unsigned char kbd_altgr_map[128] = {0,    0,
+                                    0,    '~',
+                                    '#',  '{',
+                                    '[',  '|',
+                                    '`',  '\\',
+                                    '^',  '@',
+                                    ']',  '}',
+                                    0,    0,
+                                    0,    0,
+                                    0xEE, 0,
+                                    0,    0, // 0xEE = € (approximatif)
+                                    0,    0,
+                                    0,    0,
+                                    0,    0,
+                                    0,    0,
+                                    0,    0,
+                                    0,    0,
+                                    0,    0,
+                                    0,    0,
+                                    0,    0,
+                                    0,    0,
+                                    0,    0,
+                                    0,    0,
+                                    0x33, /* escape character*/ 0,
+                                    0,    0,
+                                    0,    0,
+                                    0,    0,
+                                    0,    0,
+                                    0,    0,
+                                    0,    0,
+                                    0,    0,
+                                    0,    0,
+                                    0,    0,
+                                    0,    0,
+                                    0,    0,
+                                    0,    0,
+                                    0,    0,
+                                    0,    0,
+                                    0,    0,
+                                    0,    0,
+                                    0,    0,
+                                    0,    0,
+                                    0,    0,
+                                    0};
 
-unsigned char kbd_ctrl_map[128] = {
-    0, 0,    0, 0, 0, 0, 0, 0, 0, 0, 0,0,0,0, 0, 0, 0,
-    0, 0, 0, 0,   0, // 0xEE = € (approximatif)
-    0, 0,    0, 0,   0,   0,   0,   0,   0,   0,    0,   0,   0,   0,   0, 0, 0,
-    0, 0,    0, 0,   0,   0,   0,   0,   0,   0,    0,   0,   0,   0,   0, 0, 0,
-    0, 0,    0, 0,   0,   0,   0,   0,   0,   0,    0,   0,   0,   0,   0, 0, 0,
-    0, 0,    0, 0,   0,   0,   0,   0,   0,   0,    0,   0,   0,   0};
-
+unsigned char
+    kbd_ctrl_map[128] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                         0, 0, 0, 0, 0, // 0xEE = € (approximatif)
+                         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 
 typedef struct {
   uint16_t isr_low;   // The lower 16 bits of the ISR's address
@@ -76,6 +112,12 @@ void outb(uint16_t port, uint8_t val) {
 uint8_t inb(uint16_t port) {
   uint8_t ret;
   asm volatile("inb %1, %0" : "=a"(ret) : "Nd"(port));
+  return ret;
+}
+
+uint16_t inw(uint16_t port) {
+  uint16_t ret;
+  asm volatile("inw %1, %0" : "=a"(ret) : "Nd"(port));
   return ret;
 }
 
@@ -151,7 +193,10 @@ uint32_t isr_handler(registers_t *regs) {
     }
   };
 
-  if (42 >= regs->int_no && regs->int_no >= 32) {
+  if (regs->int_no == 46) { // Hard Disk
+  }
+
+  if (47 >= regs->int_no && regs->int_no >= 32) {
     // Si l'interruption vient de l'esclave (IRQ 8-15)
     if (regs->int_no >= 40) {
       outb(0xA0, 0x20);
@@ -176,6 +221,7 @@ extern void idt_load(uint32_t);
 extern void isr0();
 extern void isr32();
 extern void isr33();
+extern void isr46();
 extern void isr129();
 
 void timer_init(uint32_t frequency) {
@@ -187,6 +233,30 @@ void timer_init(uint32_t frequency) {
   outb(0x40, (uint8_t)((divisor >> 8) & 0xFF));
 }
 
+static void ide_wait_ready() {
+  while ((inb(0x1F7) & 0x80) || !(inb(0x1F7) & 0x40))
+    ;
+}
+
+void ide_read_sectors(uint32_t lba, uint8_t count, uint16_t *buffer) {
+  outb(0x1F6, 0xE0 | ((lba >> 24) & 0x0F));
+  ide_wait_ready();
+
+  outb(0x1F6, 0xE0 | ((lba >> 24) & 0x0F));
+  outb(0x1F2, count);
+  outb(0x1F3, (uint8_t)lba);
+  outb(0x1F4, (uint8_t)(lba >> 8));
+  outb(0x1F5, (uint8_t)(lba >> 16));
+  outb(0x1F7, 0x20);
+
+  for (int j = 0; j < count; j++) {
+    ide_wait_ready();
+
+    for (int i = 0; i < 256; i++) {
+      buffer[i + (j * 256)] = inw(0x1F0);
+    }
+  }
+}
 void init_idt() {
   idtr.limit = (sizeof(idt_entry_t) * 256) - 1;
   idtr.base = (uint32_t)&idt;
@@ -195,6 +265,7 @@ void init_idt() {
   idt_set_gate(32, (uint32_t)isr32, 0x08, 0x8E);
   idt_set_gate(33, (uint32_t)isr33, 0x08, 0x8E);
   idt_set_gate(129, (uint32_t)isr129, 0x08, 0x8E);
+  idt_set_gate(46, (uint32_t)isr46, 0x08, 0x8E);
 
   idt_load((uint32_t)&idtr);
   pic_remap(0x20, 0x28);

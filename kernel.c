@@ -1,3 +1,5 @@
+#include "disk.h"
+#include "filesystem.h"
 #include "pmm.h"
 #include "process.h"
 #include "terminal.h"
@@ -16,6 +18,7 @@ void kernel_main(multiboot_info_t *mbd, unsigned int magic) {
   init_gdt();
   init_idt();
   pmm_init(mbd);
+  init_filesystem();
 
   terminal_writestring("Bienvenue sur ErnestOS.\n");
 

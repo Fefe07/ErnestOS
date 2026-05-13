@@ -7,7 +7,7 @@ OBJS += $(SRCS_S:%.s=build/%.o)
 all: myos
 
 run: myos
-	qemu-system-i386 -kernel myos -k fr
+	qemu-system-i386 -kernel myos -k fr -drive format=raw,file=disk.img
 
 myos: $(OBJS)
 	i686-elf-gcc -T linker.ld -o myos -ffreestanding -O2 -nostdlib $(OBJS) -lgcc
