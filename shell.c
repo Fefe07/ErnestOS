@@ -102,6 +102,7 @@ void input_line() { set_keyboard_handler(add_char); };
 void shell() {
   terminal_writestring(
       "Bienvenue sur ErnestShell. Comment ca la seule commande est exit ?\n");
+  terminal_writestring("\a");
   while (continu) {
     if (new) {
       new = 0;

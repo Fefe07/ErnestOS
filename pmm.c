@@ -1,5 +1,6 @@
 #include "pmm.h"
 
+/* Array of bits representing page usage */
 uint32_t *bitmap;
 uint32_t total_pages;
 uint32_t bitmap_size;
