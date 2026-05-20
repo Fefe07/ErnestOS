@@ -235,6 +235,24 @@ struct inode_s inode_by_id(uint32_t id) {
   return res;
 }
 
+struct file_buffer open_file(struct inode_s dir, char *name) {
+  struct file_buffer fb = {.file = inode_by_name(dir, name), .pos = 0};
+  return fb;
+}
+
+void read_file(struct file_buffer *fb, uint8_t *data_buffer) {
+  struct inode_s inode = inode_by_id(fb->file);
+  uint32_t block_pointer = data_block_inode(&inode, fb->pos++);
+  if (block_pointer == 0) {
+    for (uint32_t j = 0; j < 1024; j++) {
+      data_buffer[j] = 0;
+    }
+  } else {
+    ide_read_sectors(block_pointer * sect_per_block, sect_per_block,
+                     (uint16_t *)data_buffer);
+  }
+}
+
 void init_filesystem() {
   uint8_t buffer[1024];
   ide_read_sectors(2, 2, (uint16_t *)buffer);

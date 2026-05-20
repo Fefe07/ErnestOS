@@ -23,3 +23,10 @@ struct inode_s {
 void list_dir(struct inode_s dir);
 uint32_t inode_by_name(struct inode_s dir, char *name);
 struct inode_s inode_by_id(uint32_t id);
+
+struct file_buffer {
+  uint32_t file;
+  uint32_t pos;
+} __attribute__((packed));
+struct file_buffer open_file(struct inode_s dir, char *name);
+void read_file(struct file_buffer *fb, uint8_t *data_buffer);
