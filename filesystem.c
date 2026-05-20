@@ -1,6 +1,7 @@
 #include "filesystem.h"
 #include "disk.h"
 #include "terminal.h"
+#include <stdint.h>
 
 struct superblock_s {
   uint32_t nb_inode;
@@ -77,46 +78,128 @@ void *memcpy(void *dest, const void *src, uint32_t n) {
   return dest;
 }
 
+uint32_t data_block_inode(struct inode_s *inode, uint32_t block) {
+  if (block < 12) {
+    return inode->block[block];
+  }
+  uint32_t entries_per_block = block_size / 4;
+  if (block < 12 + entries_per_block) {
+    uint32_t indirect_block = inode->block[12];
+    if (indirect_block == 0)
+      return 0;
+    uint32_t buffer[256];
+    ide_read_sectors(indirect_block * sect_per_block, sect_per_block,
+                     (uint16_t *)buffer);
+    uint32_t index_in_indirect = block - 12;
+    return buffer[index_in_indirect];
+  } else if (block <
+             12 + entries_per_block + entries_per_block * entries_per_block) {
+    uint32_t d_indirect_block = inode->block[13];
+    if (d_indirect_block == 0)
+      return 0;
+    uint32_t buffer[256];
+    ide_read_sectors(d_indirect_block * sect_per_block, sect_per_block,
+                     (uint16_t *)buffer);
+    uint32_t block_index = (block - 12) / entries_per_block - 1;
+    uint32_t block_pos = (block - 12) % entries_per_block;
+    uint32_t indirect_block = buffer[block_index];
+    if (indirect_block == 0)
+      return 0;
+    ide_read_sectors(indirect_block * sect_per_block, sect_per_block,
+                     (uint16_t *)buffer);
+    return buffer[block_pos];
+  } else if (block <
+             12 + entries_per_block + entries_per_block * entries_per_block +
+                 entries_per_block * entries_per_block * entries_per_block) {
+    uint32_t t_indirect_block = inode->block[14];
+    if (t_indirect_block == 0)
+      return 0;
+    uint32_t buffer[256];
+
+    ide_read_sectors(t_indirect_block * sect_per_block, sect_per_block,
+                     (uint16_t *)buffer);
+    uint32_t d_block_index = (block - 12 - entries_per_block) /
+                                 (entries_per_block * entries_per_block) -
+                             1;
+    uint32_t d_block_pos = (block - 12 - entries_per_block) %
+                           (entries_per_block * entries_per_block);
+    uint32_t d_indirect_block = buffer[d_block_index];
+    if (d_indirect_block == 0)
+      return 0;
+    ide_read_sectors(d_indirect_block * sect_per_block, sect_per_block,
+                     (uint16_t *)buffer);
+    uint32_t block_index = d_block_pos / entries_per_block;
+    uint32_t block_pos = d_block_pos % entries_per_block;
+    uint32_t indirect_block = buffer[block_index];
+    if (indirect_block == 0)
+      return 0;
+    ide_read_sectors(indirect_block * sect_per_block, sect_per_block,
+                     (uint16_t *)buffer);
+    return buffer[block_pos];
+  }
+  return 0;
+}
+
 void list_dir(struct inode_s dir) {
-  uint8_t buffer[1024];
-  ide_read_sectors(dir.block[0] * sect_per_block, sect_per_block,
-                   (uint16_t *)buffer);
-  struct entry_s *entry = (struct entry_s *)buffer;
-  uint32_t offset = 0;
-  while (offset < block_size) {
-    if (entry->inode != 0) {
-      for (uint32_t i = 0; i < entry->name_len; i++) {
-        terminal_putchar(*(entry->name + i));
+  uint32_t total_blocks = dir.size / block_size;
+  uint32_t block_pointer;
+  if (dir.size % block_size != 0)
+    total_blocks++;
+  for (uint32_t i = 0; i < total_blocks; i++) {
+    uint8_t buffer[1024];
+    block_pointer = data_block_inode(&dir, i);
+    if (block_pointer == 0) {
+      for (uint32_t j = 0; j < 1024; j++) {
+        buffer[j] = 0;
       }
-      terminal_putchar('\n');
+    } else {
+      ide_read_sectors(block_pointer * sect_per_block, sect_per_block,
+                       (uint16_t *)buffer);
     }
-    if (entry->size == 0) {
-      break;
+    struct entry_s *entry = (struct entry_s *)buffer;
+    uint32_t offset = 0;
+    while (offset < block_size) {
+      if (entry->inode != 0) {
+        for (uint32_t i = 0; i < entry->name_len; i++) {
+          terminal_putchar(*(entry->name + i));
+        }
+        terminal_putchar('\n');
+      }
+      if (entry->size == 0) {
+        break;
+      }
+      offset += entry->size;
+      entry = (struct entry_s *)(buffer + offset);
     }
-    offset += entry->size;
-    entry = (struct entry_s *)(buffer + offset);
   }
 }
 
 uint32_t inode_by_name(struct inode_s dir, char *name) {
+  uint32_t total_blocks = dir.size / block_size;
   uint8_t buffer[1024];
-  ide_read_sectors(dir.block[0] * sect_per_block, sect_per_block,
-                   (uint16_t *)buffer);
-  struct entry_s *entry = (struct entry_s *)buffer;
-  uint32_t offset = 0;
-  while (entry->inode != 0 && offset < block_size) {
-    uint32_t same = 1;
-    for (uint32_t i = 0; i < entry->name_len; i++) {
-      if (entry->name[i] != name[i] || name[i] == 0) {
-        same = 0;
-        break;
+  uint32_t block_pointer;
+  for (uint32_t i = 0; i < total_blocks; i++) {
+    block_pointer = data_block_inode(&dir, i);
+    if (block_pointer == 0)
+      continue;
+    ide_read_sectors(block_pointer * sect_per_block, sect_per_block,
+                     (uint16_t *)buffer);
+    struct entry_s *entry = (struct entry_s *)buffer;
+    uint32_t offset = 0;
+    while (entry->inode != 0 && offset < block_size) {
+      uint32_t same = 1;
+      for (uint32_t i = 0; i < entry->name_len; i++) {
+        if (entry->name[i] != name[i] || name[i] == 0) {
+          same = 0;
+          break;
+        }
       }
+      if (same && !name[entry->name_len]) {
+        return entry->inode;
+      }
+      offset += entry->size;
+      entry = (struct entry_s *)(buffer + offset);
     }
-    if (same && !name[entry->name_len]) {
-      return entry->inode;
-    }
-    offset += entry->size;
-    entry = (struct entry_s *)(buffer + offset);
   }
   return 0;
 }

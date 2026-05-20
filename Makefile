@@ -24,3 +24,4 @@ disk.img:
 
 clean:
 	rm -rf build/*
+	rm myos
