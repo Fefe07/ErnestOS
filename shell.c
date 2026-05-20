@@ -96,6 +96,8 @@ void execute_command(char *entree) {
     echo_main(argc, argv);
   } else if (strcmp(command, "cat")) {
     cat_main(argc, argv);
+  } else if (strcmp(command, "exec")) {
+    exec_main(argc, argv);
   } else if (strcmp(command, "time")) {
     time_main(argc, argv);
   } else if (strcmp(command, "sleep")) {

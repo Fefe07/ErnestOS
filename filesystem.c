@@ -176,8 +176,8 @@ void list_dir(struct inode_s dir) {
 }
 
 uint32_t inode_by_name(struct inode_s dir, char *name) {
-  uint32_t total_blocks = dir.size / block_size;
-  // gets a subdir with its name
+  uint32_t total_blocks = dir.size / block_size + 1;
+  // gets a subdir/file with its name
 
   uint8_t buffer[1024];
   uint32_t block_pointer;
@@ -227,11 +227,17 @@ struct inode_s inode_by_id(uint32_t id) {
   uint32_t group = (id - 1) / superblock.nb_inodes_group;
   uint32_t index = (id - 1) % superblock.nb_inodes_group;
   struct bgd_s bgd = get_bgd(group);
+
+  uint32_t byte_offset = index * superblock.inode_size;
+  uint32_t block_offset = byte_offset / block_size;
+  uint32_t offset_in_block = byte_offset % block_size;
+
   uint8_t buffer[1024];
-  ide_read_sectors(bgd.inode_table * sect_per_block, sect_per_block,
-                   (uint16_t *)buffer);
+
+  ide_read_sectors((bgd.inode_table + block_offset) * sect_per_block,
+                   sect_per_block, (uint16_t *)buffer);
   struct inode_s res;
-  memcpy(&res, buffer + index * superblock.inode_size, sizeof(struct inode_s));
+  memcpy(&res, buffer + offset_in_block, sizeof(struct inode_s));
   return res;
 }
 
