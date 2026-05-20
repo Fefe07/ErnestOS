@@ -29,4 +29,5 @@ struct file_buffer {
   uint32_t pos;
 } __attribute__((packed));
 struct file_buffer open_file(struct inode_s dir, char *name);
-void read_file(struct file_buffer *fb, uint8_t *data_buffer);
+uint32_t read_file(struct file_buffer *fb, uint8_t *data_buffer);
+void *memcpy(void *dest, const void *src, uint32_t n);

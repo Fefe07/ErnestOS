@@ -240,7 +240,7 @@ struct file_buffer open_file(struct inode_s dir, char *name) {
   return fb;
 }
 
-void read_file(struct file_buffer *fb, uint8_t *data_buffer) {
+uint32_t read_file(struct file_buffer *fb, uint8_t *data_buffer) {
   struct inode_s inode = inode_by_id(fb->file);
   uint32_t block_pointer = data_block_inode(&inode, fb->pos++);
   if (block_pointer == 0) {
@@ -251,6 +251,11 @@ void read_file(struct file_buffer *fb, uint8_t *data_buffer) {
     ide_read_sectors(block_pointer * sect_per_block, sect_per_block,
                      (uint16_t *)data_buffer);
   }
+  if (fb->pos < inode.size / block_size)
+    return block_size;
+  if (fb->pos == inode.size / block_size)
+    return inode.size % block_size;
+  return 0;
 }
 
 void init_filesystem() {
