@@ -1,6 +1,13 @@
 #include "filesystem.h"
 #include "disk.h"
 #include "terminal.h"
+#include <stdint.h>
+#include <stdbool.h>
+
+
+/* EXT2 filesystem */
+/* See https://wiki.osdev.org/Ext2 */
+
 
 struct superblock_s {
   uint32_t nb_inode;
@@ -42,6 +49,7 @@ struct superblock_s {
   uint8_t nb_blocks_preallocate_dir;
 } __attribute__((packed));
 
+// block group descriptor
 struct bgd_s {
   uint32_t block_bitmap;
   uint32_t inode_bitmap;
@@ -67,7 +75,9 @@ uint32_t sect_per_block;
 struct bgd_s bgd;
 struct inode_s root;
 
+
 void *memcpy(void *dest, const void *src, uint32_t n) {
+  /* Copie caractère par caractère */
   uint8_t *d = (uint8_t *)dest;
   const uint8_t *s = (const uint8_t *)src;
 
@@ -77,33 +87,65 @@ void *memcpy(void *dest, const void *src, uint32_t n) {
   return dest;
 }
 
+uint32_t find_free_inode(struct bgd_s bgd){
+  uint32_t i = 0 ;
+  //uint8_t* blocks = (uint8_t*)bgd.block_bitmap ;
+  uint8_t* inodes = (uint8_t*)bgd.inode_bitmap ;
+  while(inodes[i]== 0xFF){
+    i ++ ;
+  }
+  uint32_t j = 0 ;
+  while((*(inodes+i) & (1<<j)) == (1<<j) ){
+    j ++ ;
+  }
+  //if(blocks[i/(superblock.inode])
+  *(inodes+i) = *(inodes + i) | (1 << j) ;
+  bgd.nb_unallocated_inodes -= 1 ;
+  struct inode_s* table_inodes = (struct inode_s*)bgd.inode_table ;
+  // ca renvoie une vraie adresse, c'est bien ce qu'on veut ?
+  return 8 * i + j + 1 ;
+
+}
+
 void list_dir(struct inode_s dir) {
   // lists_subdirs of a dir
-
+  // ls command
   uint8_t buffer[1024];
-  ide_read_sectors(dir.block[0] * sect_per_block, sect_per_block,
-                   (uint16_t *)buffer);
-  struct entry_s *entry = (struct entry_s *)buffer;
-  uint32_t offset = 0;
-  while (offset < block_size) {
-    if (entry->inode != 0) {
-      for (uint32_t i = 0; i < entry->name_len; i++) {
-        terminal_putchar(*(entry->name + i));
+  bool finished = false ;
+  for(uint32_t i_block = 0 ; !finished &&  i_block< superblock.nb_blocks_group ; i_block++){
+    ide_read_sectors(dir.block[i_block] * sect_per_block, sect_per_block,
+                    (uint16_t *)buffer);
+    struct entry_s *entry = (struct entry_s *)buffer;
+    uint32_t offset = 0;
+    
+    while (offset < block_size) {
+      if (entry->inode != 0) {
+        for (uint32_t i = 0; i < entry->name_len; i++) {
+          terminal_putchar(*(entry->name + i));
+        }
+        terminal_putchar('\n');
       }
-      terminal_putchar('\n');
+      if (entry->size == 0) {
+        finished = true ;
+        break;
+      }
+      offset += entry->size;
+      entry = (struct entry_s *)(buffer + offset);
     }
-    if (entry->size == 0) {
+    if(finished){
       break;
     }
-    offset += entry->size;
-    entry = (struct entry_s *)(buffer + offset);
   }
 }
 
 uint32_t inode_by_name(struct inode_s dir, char *name) {
   // gets a subdir with its name
+  // returns its id, not the structure 
+  // -> if returns 0, then none was found
 
   uint8_t buffer[1024];
+  // reads the block of dir, puts this in buffer
+  // remark : buffer becomes the address of the first element
   ide_read_sectors(dir.block[0] * sect_per_block, sect_per_block,
                    (uint16_t *)buffer);
   struct entry_s *entry = (struct entry_s *)buffer;
@@ -124,6 +166,98 @@ uint32_t inode_by_name(struct inode_s dir, char *name) {
   }
   return 0;
 }
+
+uint8_t string_length(char* s){
+  uint8_t i = 0 ;
+  while(s[i] != '\0'){
+    i ++ ;
+  }
+  return i ;
+} 
+
+
+
+void mkdir(uint32_t argc, char **argv, struct inode_s working_directory){
+  // creates a new directory in the working directory
+
+  // checks input is ok
+  if (argc != 2) {
+    terminal_writestring("mkdir prend exactement un argument\n");
+    return ;
+  }
+  uint32_t new_node = inode_by_name(working_directory, argv[1]);
+  if (new_node) {
+    terminal_writestring(argv[1]);
+    terminal_writestring(" already exists.\n");
+    return;
+  }
+  char* name = argv[1] ;
+  
+  // searches for a free place
+  uint8_t buffer[1024];
+  // reads the block of dir, puts this in buffer
+  // remark : buffer becomes the address of the first element
+
+  int i = 0 ;
+  bool found = false;
+  struct entry_s *entry ;
+  while(!found){
+    ide_read_sectors(working_directory.block[i] * sect_per_block, sect_per_block,
+                   (uint16_t *)buffer);
+     entry = (struct entry_s *)buffer;
+    uint32_t offset = 0;
+    terminal_writestring("block_size : ") ;
+    terminal_write_int(block_size);
+    while (offset < block_size) {
+      terminal_writestring("offset : ") ;
+      terminal_write_int(offset);
+      terminal_writestring("\nentry->size : ");
+      terminal_write_int(entry->size);
+      terminal_writestring("\nentry->inode : ");
+      terminal_write_int(entry->inode);
+      terminal_writestring("\nentry->type : ");
+      terminal_write_int(entry->type);
+      terminal_writestring("\nentry->name_len : ");
+      terminal_write_int(entry->name_len);
+      terminal_writestring("\nentry->name :");
+      terminal_writestring(entry->name);
+      terminal_writestring("\n");
+      if (entry->size == 0 || entry->inode == 0) {
+        terminal_writestring("found empty room \n");
+        found = true ;
+        break;
+      }
+      offset += entry->size;
+      entry = (struct entry_s *)(buffer + offset);
+    }
+    if (offset >= block_size){
+      terminal_writestring(" bloc plein\n");
+    }
+    i ++ ;
+  }
+  
+  
+  // memcpy(new_entry.name, name, new_entry.name_len) ;
+  // new_entry.type = 2 ;
+  // new_entry.size = 8 + new_entry.name_len ; 
+  //new_entry.inode = (uint32_t)find_free_inode(bgd) ; 
+  uint8_t name_len = string_length(name);
+  uint32_t inode = (uint32_t)find_free_inode(bgd);
+  terminal_write_int(inode);
+  *((uint32_t *) entry) =  inode ; 
+  *((uint16_t *) entry + 2) = (uint16_t)name_len + 8 ;
+  *((uint8_t *) entry + 6) = name_len ;
+  *((uint8_t *) entry + 7) = 2 ;
+  memcpy((void*)((uint8_t *) entry + 8), name, name_len);
+  bgd.nb_dir ++ ;
+
+  //TODO : add . and .. in the directory
+
+
+  // bgd.nbdir ++ ; ???????
+}
+
+
 
 struct bgd_s get_bgd(uint32_t group_index) {
   struct bgd_s target_bgd;

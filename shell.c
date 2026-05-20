@@ -40,6 +40,7 @@ void cd(uint32_t argc, char **argv) {
   }
   struct inode_s new_inode = inode_by_id(new_node);
   if ((new_inode.type_perm & 0x4000) != 0x4000) {
+    // teste un bit
     terminal_writestring(argv[1]);
     terminal_writestring(" is not a directory.\n");
   } else {
@@ -100,6 +101,8 @@ void execute_command(char *entree) {
     sleep_main(argc, argv);
   } else if (strcmp(command, "help")) {
     help_main(argc, argv);
+  } else if (strcmp(command, "mkdir")){
+    mkdir(argc, argv, working_directory);
   } else {
     terminal_writestring("Unknown command : ");
     terminal_writestring(command);

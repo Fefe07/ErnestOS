@@ -23,3 +23,4 @@ struct inode_s {
 void list_dir(struct inode_s dir);
 uint32_t inode_by_name(struct inode_s dir, char *name);
 struct inode_s inode_by_id(uint32_t id);
+void mkdir(uint32_t argc, char* argv[], struct inode_s working_directory);

@@ -43,16 +43,16 @@ int help_main(int argc, char** argv){
             return 0 ;
         }
         if(strcmp(argv[1], "sleep")){
-            terminal_writestring("La commande sleep prend un argument entier et attend le nombre de ticks correspondant\n");
-            terminal_writestring("Actuellement 18 ticks = 1 seconde\n");
+            terminal_writestring("La commande sleep prend un argument entier et attend le nombre de secondes correspondant\n");
+            //terminal_writestring("Actuellement 18 ticks = 1 seconde\n");
             return 0 ;
-            /* TODO : A preciser    */
+            
         }
         if(strcmp(argv[1], "time")){
             terminal_writestring("La commande time renvoie le temps en ticks depuis le demarrage\n");
             terminal_writestring("Actuellement 18 ticks = 1 seconde\n");
             return 0 ;
-            /* TODO : A preciser    */
+            
         }
 
 

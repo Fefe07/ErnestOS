@@ -17,7 +17,9 @@ Type `help` for command list, and `help foo` for more precisions.
 NB : the OS is in French so far.
 
 
-TODO : Ctrl + C or up/down arrows for historic 
+TODO : Ctrl + C 
+TODO : Pourquoi 3 et entree c'est pareil    
+TODO : up/down arrows for historic 
 TODO : FIlesystem + reader (fish) + writer (pico)
 TODO : Rickroll
 TODO : run command (takes a shell file). -cached option ?

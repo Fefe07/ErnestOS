@@ -7,7 +7,7 @@ uint32_t bitmap_size;
 
 void *pmm_alloc_page() {
   for (uint32_t i = 0; i < bitmap_size; i++) {
-    if (bitmap[i] != 0xFF) {
+    if (bitmap[i] != 0xFFFFFFFF) { // this is a 32-bit number !
       for (int j = 0; j < 32; j++) {
         if ((bitmap[i] & (1 << j)) == 0) {
           bitmap[i] |= (1 << j);

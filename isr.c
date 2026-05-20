@@ -172,7 +172,7 @@ uint32_t isr_handler(registers_t *regs) {
   if (regs->int_no == 33) { // Keyboard
 
     /* Gets the scancode from the keyboard*/
-    /* TODO : Scancode : scancode code set 1 
+    /*  Scancode : scancode code set 1 
     (see https://wiki.osdev.org/PS/2_Keyboard#Scan_Code_Set_1) */
 
     uint8_t scancode = inb(0x60);
@@ -251,6 +251,8 @@ static void ide_wait_ready() {
 }
 
 void ide_read_sectors(uint32_t lba, uint8_t count, uint16_t *buffer) {
+  // reads the number count of sectors in the memory, à l'adresse lba
+  // place their content in buffer
   outb(0x1F6, 0xE0 | ((lba >> 24) & 0x0F));
   ide_wait_ready();
 
