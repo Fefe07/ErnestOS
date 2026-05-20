@@ -251,9 +251,9 @@ uint32_t read_file(struct file_buffer *fb, uint8_t *data_buffer) {
     ide_read_sectors(block_pointer * sect_per_block, sect_per_block,
                      (uint16_t *)data_buffer);
   }
-  if (fb->pos < inode.size / block_size)
+  if (fb->pos - 1 < inode.size / block_size)
     return block_size;
-  if (fb->pos == inode.size / block_size)
+  if (fb->pos - 1 == inode.size / block_size)
     return inode.size % block_size;
   return 0;
 }
