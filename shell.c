@@ -95,6 +95,8 @@ void execute_command(char *entree) {
     terminal_writestring("Hello World !\n");
   } else if (strcmp(command, "echo")) {
     echo_main(argc, argv);
+  } else if (strcmp(command, "cat")) {
+    cat_main(argc, argv);
   } else if (strcmp(command, "time")) {
     time_main(argc, argv);
   } else if (strcmp(command, "sleep")) {

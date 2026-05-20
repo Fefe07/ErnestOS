@@ -24,3 +24,11 @@ void list_dir(struct inode_s dir);
 uint32_t inode_by_name(struct inode_s dir, char *name);
 struct inode_s inode_by_id(uint32_t id);
 void mkdir(uint32_t argc, char* argv[], struct inode_s working_directory);
+
+struct file_buffer {
+  uint32_t file;
+  uint32_t pos;
+} __attribute__((packed));
+struct file_buffer open_file(struct inode_s dir, char *name);
+uint32_t read_file(struct file_buffer *fb, uint8_t *data_buffer);
+void *memcpy(void *dest, const void *src, uint32_t n);
