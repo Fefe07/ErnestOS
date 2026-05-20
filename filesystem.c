@@ -151,6 +151,7 @@ void list_dir(struct inode_s dir) {
     if (block_pointer == 0) {
       for (uint32_t j = 0; j < 1024; j++) {
         buffer[j] = 0;
+        // lists_subdirs of a dir
       }
     } else {
       ide_read_sectors(block_pointer * sect_per_block, sect_per_block,
@@ -176,6 +177,8 @@ void list_dir(struct inode_s dir) {
 
 uint32_t inode_by_name(struct inode_s dir, char *name) {
   uint32_t total_blocks = dir.size / block_size;
+  // gets a subdir with its name
+
   uint8_t buffer[1024];
   uint32_t block_pointer;
   for (uint32_t i = 0; i < total_blocks; i++) {

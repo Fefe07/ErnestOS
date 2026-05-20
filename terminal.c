@@ -46,7 +46,9 @@ size_t terminal_row;
 size_t terminal_column;
 uint8_t terminal_color;
 uint16_t *terminal_buffer = (uint16_t *)VGA_MEMORY;
+extern int new ;
 
+void terminal_writestring(const char *data);
 void terminal_setcolor(uint8_t color) { terminal_color = color; }
 
 void terminal_putentryat(char c, uint8_t color, size_t x, size_t y) {
@@ -87,6 +89,13 @@ void terminal_putchar(char c) {
       terminal_buffer[VGA_WIDTH * (--terminal_row) + terminal_column] =
           vga_entry(' ', terminal_color);
     }
+  } else if (c == 0x33){ // escape character
+    terminal_writestring("\n");
+    /* TODO */
+    /* new = 1 resets the command input, but does not stop the processes */
+    new = 1 ;
+  
+  
   } else {
     terminal_putentryat(c, terminal_color, terminal_column, terminal_row);
     if (++terminal_column == VGA_WIDTH) {
