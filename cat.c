@@ -9,15 +9,15 @@ int cat_main(int argc, char **argv) {
     return 2;
   }
   char buffer[1025];
+  uint32_t size;
   struct file_buffer fb = open_file(working_directory, argv[1]);
   while (1) {
-    read_file(&fb, (uint8_t *)buffer);
-    buffer[1024] = 0;
-    if (buffer[0] == 0) {
+    size = read_file(&fb, (uint8_t *)buffer);
+    buffer[size] = 0;
+    if (size == 0) {
       return 1;
     } else {
       terminal_writestring(buffer);
-      terminal_writestring("\n");
     }
   }
   return 2;
