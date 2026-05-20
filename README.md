@@ -18,3 +18,7 @@ NB : the OS is in French so far.
 
 
 TODO : Ctrl + C or up/down arrows for historic 
+TODO : FIlesystem + reader (fish) + writer (pico)
+TODO : Rickroll
+TODO : run command (takes a shell file). -cached option ?
+TODO : Find processes to put in parallel

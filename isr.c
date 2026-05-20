@@ -11,6 +11,7 @@ uint32_t timer = 0;
 uint32_t ticks = 0;
 uint32_t maj = 0;
 uint32_t alt = 0;
+uint32_t ctrl = 0;
 unsigned char kbd_map[128] = {
     0,    27,  '&', 0x82, '"',  '\'', '(',  '-',  0x8a, '_', 0x87,
     0x85, ')', '=', '\b', '\t', 'a',  'z',  'e',  'r',  't', 'y',
@@ -75,14 +76,14 @@ unsigned char kbd_altgr_map[128] = {0,    0,
                                     0,    0,
                                     0,    0,
                                     0};
+unsigned char kbd_ctrl_map[128] = {
+    0, 0,    0, 0, 0, 0, 0, 0, 0, 0, 0,0,0,0, 0, 0, 0,
+    0, 0, 0, 0,   0, 
+    0, 0,    0, 0,   0,   0,   0,   0,   0,   0,    0,   0,   0,   0,   0, 0, 0,
+    0, 0,    0, 0,   0,   0,   0,   0x33, /* escape character*/    0,   0,    0,   0,   0,   0,   0, 0, 0,
+    0, 0,    0, 0,   0,   0,   0,   0,   0,   0,    0,   0,   0,   0,   0, 0, 0,
+    0, 0,    0, 0,   0,   0,   0,   0,   0,   0,    0,   0,   0,   0};
 
-unsigned char
-    kbd_ctrl_map[128] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                         0, 0, 0, 0, 0, // 0xEE = € (approximatif)
-                         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 
 typedef struct {
   uint16_t isr_low;   // The lower 16 bits of the ISR's address
@@ -169,6 +170,11 @@ uint32_t isr_handler(registers_t *regs) {
   }
 
   if (regs->int_no == 33) { // Keyboard
+
+    /* Gets the scancode from the keyboard*/
+    /* TODO : Scancode : scancode code set 1 
+    (see https://wiki.osdev.org/PS/2_Keyboard#Scan_Code_Set_1) */
+
     uint8_t scancode = inb(0x60);
     if (scancode == 0x2A || scancode == 0x36) {
       maj = 1;
@@ -178,6 +184,10 @@ uint32_t isr_handler(registers_t *regs) {
       alt = 1;
     } else if (scancode == 0xB8) {
       alt = 0;
+    } else if (scancode == 0x1D) {
+      ctrl = 1;
+    } else if (scancode == 0x9D) {
+      ctrl = 0;
     } else {
       if (!(scancode & 0x80)) {
         unsigned char *current_table = kbd_map;
@@ -185,6 +195,8 @@ uint32_t isr_handler(registers_t *regs) {
           current_table = kbd_shift_map;
         else if (alt)
           current_table = kbd_altgr_map;
+        else if(ctrl)
+          current_table = kbd_ctrl_map;
         if (scancode < 128 && current_table[scancode] != 0) {
           char c = current_table[scancode];
           keypress(c);

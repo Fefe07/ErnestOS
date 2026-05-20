@@ -78,6 +78,8 @@ void *memcpy(void *dest, const void *src, uint32_t n) {
 }
 
 void list_dir(struct inode_s dir) {
+  // lists_subdirs of a dir
+
   uint8_t buffer[1024];
   ide_read_sectors(dir.block[0] * sect_per_block, sect_per_block,
                    (uint16_t *)buffer);
@@ -99,6 +101,8 @@ void list_dir(struct inode_s dir) {
 }
 
 uint32_t inode_by_name(struct inode_s dir, char *name) {
+  // gets a subdir with its name
+
   uint8_t buffer[1024];
   ide_read_sectors(dir.block[0] * sect_per_block, sect_per_block,
                    (uint16_t *)buffer);
